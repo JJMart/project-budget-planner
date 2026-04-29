@@ -1,0 +1,19 @@
+# Original reference spreadsheet (not needed at runtime)
+LMN_DamSystem_Budget_11162022.xlsx
+
+# User-generated budget files (created by export)
+*_budget.json
+*_budget.xlsx
+*_budget.csv
+
+# Backup and temp files
+*.bak
+*.tmp
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Saved budget data from testing
+SF_Study_budget.csv
+SF_Study_budget.json

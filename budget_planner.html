@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Budget Planner</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f4f6f8; --card: #ffffff; --border: #d1d5db;
+  --accent: #2563eb; --accent-hover: #1d4ed8;
+  --danger: #dc2626; --danger-hover: #b91c1c;
+  --text: #1f2937; --muted: #6b7280;
+  --green: #16a34a; --green-bg: #dcfce7;
+  --yellow-bg: #fef9c3;
+  font-size: 14px;
+}
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+.app { max-width: 1440px; margin: 0 auto; padding: 1rem; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
+header h1 { font-size: 1.5rem; color: var(--accent); }
+.header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* Tabs */
+.tabs { display: flex; gap: 2px; margin-bottom: 0; flex-wrap: wrap; align-items: stretch; }
+.tab-btn { padding: 0.5rem 1rem; background: var(--card); border: 1px solid var(--border); border-bottom: none;
+  border-radius: 6px 6px 0 0; cursor: pointer; font-weight: 500; color: var(--muted); transition: all .15s; font-size: 0.9rem; }
+.tab-btn.active { color: var(--accent); background: var(--card); border-bottom: 2px solid var(--accent); }
+.tab-btn:hover:not(.active) { background: #e5e7eb; }
+.tab-btn.tab-setup { font-size: 0.8rem; background: #f3f4f6; border-style: dashed; color: #9ca3af; }
+.tab-btn.tab-setup.active { color: var(--accent); background: var(--card); border-style: solid; border-bottom: 2px solid var(--accent); }
+.tab-btn.tab-setup:hover:not(.active) { background: #e5e7eb; color: var(--muted); }
+.tab-separator { width: 1px; background: var(--border); margin: 0.3rem 0.5rem; align-self: stretch; }
+.tab-content { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 0 6px 6px 6px; padding: 1rem; }
+.tab-content.active { display: block; }
+
+/* Buttons */
+button { cursor: pointer; font: inherit; }
+.btn { padding: 0.4rem 0.85rem; border-radius: 5px; border: 1px solid transparent; font-weight: 500; transition: all .15s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: var(--danger-hover); }
+.btn-outline { background: transparent; border-color: var(--border); color: var(--text); }
+.btn-outline:hover { background: #f3f4f6; }
+.btn-sm { padding: 0.25rem 0.6rem; font-size: 0.85rem; }
+.btn-icon { background: none; border: none; font-size: 1.1rem; padding: 0.15rem 0.35rem; border-radius: 3px; color: var(--danger); }
+.btn-icon:hover { background: #fee2e2; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; margin-top: 0.75rem; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid var(--border); padding: 0; text-align: left; white-space: nowrap; vertical-align: middle; }
+th { background: #f0f4ff; font-weight: 600; padding: 0.4rem 0.5rem; position: sticky; top: 0; z-index: 1; }
+td input, td select { border: none; background: transparent; width: 100%; font: inherit; padding: 0.35rem 0.5rem; margin: 0; display: block; }
+td input:focus, td select:focus { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 0; }
+td input[type="number"] { text-align: right; }
+td input[type="date"] { text-align: center; }
+td.computed { background: var(--green-bg); font-weight: 600; text-align: right; padding: 0.35rem 0.5rem; }
+td.computed-sub { background: var(--yellow-bg); text-align: right; padding: 0.35rem 0.5rem; }
+td.action-cell { text-align: center; padding: 0.2rem; width: 32px; }
+tfoot td { font-weight: 700; background: #f0f4ff; padding: 0.35rem 0.5rem; }
+
+/* Project info */
+.project-bar { display: flex; gap: 1rem; flex-wrap: wrap; align-items: end; margin-bottom: 1rem; }
+.project-bar label { font-weight: 600; font-size: 0.85rem; color: var(--muted); }
+.project-bar input { border: 1px solid var(--border); border-radius: 4px; padding: 0.35rem 0.5rem; font: inherit; }
+.project-bar input[type="text"] { width: 220px; }
+.project-bar input[type="number"] { width: 80px; }
+.project-bar input[type="date"] { width: 150px; }
+
+/* Summary */
+.summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+.summary-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; text-align: center; }
+.summary-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.summary-card .value { font-size: 1.25rem; font-weight: 700; color: var(--accent); margin-top: 0.15rem; }
+
+/* Chart */
+.chart-container { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+.chart-container h3 { font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--muted); }
+.chart-bar-area { display: flex; align-items: flex-end; gap: 2px; height: 160px; border-bottom: 2px solid var(--border); padding-bottom: 0; }
+.chart-bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 20px; height: 100%; justify-content: flex-end; }
+.chart-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 0; position: relative; }
+.chart-bar.labor { background: #3b82f6; }
+.chart-bar.travel { background: #f59e0b; }
+.chart-bar.materials { background: #10b981; }
+.chart-bar.subcontracts { background: #8b5cf6; }
+.chart-labels { display: flex; gap: 2px; margin-top: 0.25rem; }
+.chart-labels span { flex: 1; text-align: center; font-size: 0.6rem; color: var(--muted); min-width: 20px; overflow: hidden; }
+.chart-legend { display: flex; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap; }
+.chart-legend-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; color: var(--muted); }
+.chart-legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
+.chart-tooltip { position: absolute; background: #1f2937; color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; white-space: nowrap; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 4px; display: none; z-index: 10; pointer-events: none; }
+.chart-bar-group:hover .chart-tooltip { display: block; }
+
+/* Section headers */
+.section-header { display: flex; justify-content: space-between; align-items: center; margin: 0.5rem 0; }
+.section-header h3 { font-size: 1rem; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; }
+.modal-overlay.active { display: flex; }
+.modal { background: var(--card); border-radius: 8px; padding: 1.5rem; width: 90%; max-width: 520px; box-shadow: 0 8px 30px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+.modal h2 { margin-bottom: 1rem; font-size: 1.15rem; }
+.modal .form-group { margin-bottom: 0.75rem; }
+.modal label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.25rem; }
+.modal input, .modal select { width: 100%; border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.5rem; font: inherit; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+
+/* Utility */
+.text-right { text-align: right; }
+.text-muted { color: var(--muted); font-size: 0.85rem; }
+.mt-1 { margin-top: 1rem; }
+.hint { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+@media (max-width: 768px) { .project-bar { flex-direction: column; } .project-bar input[type="text"] { width: 100%; } }
+</style>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>📊 Project Budget Planner</h1>
+    <div class="header-actions">
+      <button class="btn btn-outline" onclick="exportJSON()">💾 Save JSON</button>
+      <label class="btn btn-outline" style="margin:0">📂 Load JSON<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+      <button class="btn btn-outline" onclick="exportExcel()">📊 Export Excel</button>
+      <button class="btn btn-danger btn-sm" onclick="resetAll()">🗑 Reset All</button>
+    </div>
+  </header>
+
+  <div class="project-bar">
+    <div><label>Project Name</label><br><input type="text" id="projectName" placeholder="e.g. Dam Monitoring" oninput="save()"></div>
+    <div><label>Fiscal Year</label><br><input type="text" id="fiscalYear" placeholder="FY2025" style="width:80px" oninput="save()"></div>
+    <div><label>Start Date</label><br><input type="date" id="projectStart" oninput="recalcAll()"></div>
+    <div><label>Duration (months)</label><br><input type="number" id="projectDuration" min="1" max="120" value="12" style="width:70px" oninput="recalcAll()"></div>
+    <div><label>Burden — Labor</label><br><input type="number" id="burdenStaff" value="1.0" step="0.01" min="1" oninput="recalcAll()"></div>
+    <div><label>Burden — Materials</label><br><input type="number" id="burdenMaterials" value="1.3" step="0.01" min="1" oninput="recalcAll()"></div>
+    <div><label>Burden — Travel</label><br><input type="number" id="burdenTravel" value="1.2" step="0.01" min="1" oninput="recalcAll()"></div>
+    <div><label>Burden — Subcontracts</label><br><input type="number" id="burdenSubcontracts" value="1.2" step="0.01" min="1" oninput="recalcAll()"></div>
+  </div>
+
+  <div class="summary-cards">
+    <div class="summary-card"><div class="label">Labor (Burdened)</div><div class="value" id="totalStaff">$0</div></div>
+    <div class="summary-card"><div class="label">Travel (Burdened)</div><div class="value" id="totalTravel">$0</div></div>
+    <div class="summary-card"><div class="label">Materials (Burdened)</div><div class="value" id="totalMaterials">$0</div></div>
+    <div class="summary-card"><div class="label">Subcontracts (Burdened)</div><div class="value" id="totalSubcontracts">$0</div></div>
+    <div class="summary-card" style="border-color:var(--accent)"><div class="label">Grand Total</div><div class="value" id="grandTotal">$0</div></div>
+  </div>
+
+  <!-- Monthly spending chart -->
+  <div class="chart-container" id="chartContainer">
+    <h3>Monthly Spending (Burdened)</h3>
+    <div class="chart-bar-area" id="chartBars"></div>
+    <div class="chart-labels" id="chartLabels"></div>
+    <div class="chart-legend">
+      <div class="chart-legend-item"><div class="chart-legend-swatch" style="background:#3b82f6"></div>Labor</div>
+      <div class="chart-legend-item"><div class="chart-legend-swatch" style="background:#f59e0b"></div>Travel</div>
+      <div class="chart-legend-item"><div class="chart-legend-swatch" style="background:#10b981"></div>Materials</div>
+      <div class="chart-legend-item"><div class="chart-legend-swatch" style="background:#8b5cf6"></div>Subcontracts</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="laborTab">Labor</button>
+    <button class="tab-btn" data-tab="travelTab">Travel</button>
+    <button class="tab-btn" data-tab="materialsTab">Materials</button>
+    <button class="tab-btn" data-tab="subcontractsTab">Subcontracts</button>
+    <div class="tab-separator"></div>
+    <button class="tab-btn tab-setup" data-tab="tasksTab">⚙ Tasks</button>
+    <button class="tab-btn tab-setup" data-tab="taskCategoriesTab">⚙ Task Categories</button>
+    <button class="tab-btn tab-setup" data-tab="chargeRatesTab">⚙ Charge Rates</button>
+    <button class="tab-btn tab-setup" data-tab="locationsTab">⚙ Locations</button>
+  </div>
+
+  <div id="laborTab" class="tab-content active">
+    <div class="section-header">
+      <h3>Labor Hours &amp; Costs</h3>
+      <div style="display:flex;gap:0.5rem">
+        <button class="btn btn-primary btn-sm" onclick="openModal('addStaff')">+ Add Staff</button>
+      </div>
+    </div>
+    <p class="text-muted">Hours per staff per task. Define tasks in the ⚙ Tasks tab. Costs auto-calculated from charge rates.</p>
+    <div class="table-wrap" id="laborTableWrap"></div>
+  </div>
+
+  <div id="travelTab" class="tab-content">
+    <div class="section-header">
+      <h3>Travel Expenses</h3>
+      <button class="btn btn-primary btn-sm" onclick="addTravelRow()">+ Add Trip</button>
+    </div>
+    <p class="text-muted">Select a location and task. Single-date for 1 trip; multi-trip spaces evenly across start→end.</p>
+    <div class="table-wrap" id="travelTableWrap"></div>
+  </div>
+
+  <div id="materialsTab" class="tab-content">
+    <div class="section-header">
+      <h3>Materials &amp; Supplies</h3>
+      <button class="btn btn-primary btn-sm" onclick="addMaterialRow()">+ Add Item</button>
+    </div>
+    <p class="text-muted">One-time purchases have a single date. Ongoing items (rentals) have start/end dates with monthly cost.</p>
+    <div class="table-wrap" id="materialsTableWrap"></div>
+  </div>
+
+  <div id="subcontractsTab" class="tab-content">
+    <div class="section-header">
+      <h3>Subcontracts</h3>
+      <button class="btn btn-primary btn-sm" onclick="addSubcontractRow()">+ Add Subcontract</button>
+    </div>
+    <div class="table-wrap" id="subcontractsTableWrap"></div>
+  </div>
+
+  <div id="tasksTab" class="tab-content">
+    <div class="section-header">
+      <h3>Tasks</h3>
+      <button class="btn btn-primary btn-sm" onclick="openModal('addTask')">+ Add Task</button>
+    </div>
+    <p class="text-muted">Define tasks with dates and burn rates. These populate the Labor tab columns.</p>
+    <div class="table-wrap" id="tasksTableWrap"></div>
+  </div>
+
+  <div id="taskCategoriesTab" class="tab-content">
+    <div class="section-header">
+      <h3>Task Categories</h3>
+      <button class="btn btn-primary btn-sm" onclick="addTaskCategory()">+ Add Category</button>
+    </div>
+    <div class="table-wrap" id="taskCategoriesTableWrap"></div>
+  </div>
+
+  <div id="chargeRatesTab" class="tab-content">
+    <div class="section-header">
+      <h3>Charge Rate Categories</h3>
+      <div style="display:flex;gap:0.5rem">
+        <button class="btn btn-primary btn-sm" onclick="addChargeRate()">+ Add Rate</button>
+        <label class="btn btn-outline btn-sm" style="margin:0">📂 Import<input type="file" accept=".json,.csv,.txt" style="display:none" onchange="importChargeRates(event)"></label>
+      </div>
+    </div>
+    <p class="hint">Import CSV (<code>Category,Rate</code>) or JSON (<code>[{"category":"...","rate":0}]</code>).</p>
+    <div class="table-wrap" id="chargeRatesTableWrap"></div>
+  </div>
+
+  <div id="locationsTab" class="tab-content">
+    <div class="section-header">
+      <h3>Locations</h3>
+      <button class="btn btn-primary btn-sm" onclick="addLocation()">+ Add Location</button>
+    </div>
+    <div class="table-wrap" id="locationsTableWrap"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   DEFAULTS
+   ═══════════════════════════════════════════════════════════════ */
+const DEFAULT_TASK_CATEGORIES = [
+  'Planning & Design','Permitting','Procurement','Lab',
+  'Field — Deployment','Field — Operations','Field — Recovery',
+  'Data Collection','Data Processing','Data Analysis',
+  'Reporting','Management','Training','IT & Software','Equipment Maintenance','Other'
+];
+const DEFAULT_CHARGE_RATES = [
+  {category:'Student Intern',rate:35.89},{category:'Post Masters',rate:83.78},
+  {category:'Post Doctorate',rate:94.49},{category:'Scientist/Engineer 1',rate:158.24},
+  {category:'Scientist/Engineer 2',rate:184.45},{category:'Scientist/Engineer 3',rate:216.32},
+  {category:'Scientist/Engineer 4',rate:257.79},{category:'Scientist/Engineer 5',rate:306.83},
+  {category:'Scientist/Engineer 6',rate:364.65},{category:'Specialist 1',rate:139.34},
+  {category:'Specialist 2',rate:164.54},{category:'Specialist 3',rate:202.72},
+  {category:'Specialist 4',rate:237.23},{category:'Specialist 5',rate:280.63}
+];
+const BURN_TYPES = ['linear','front-heavy','back-heavy','bell-curve'];
+
+/* ═══════════════════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════════════════ */
+let state = getDefaultState(), nextId = 1;
+function genId() { return nextId++; }
+function getDefaultState() {
+  return {
+    projectName:'', fiscalYear:'', projectStart:'', projectDuration:12,
+    burdenStaff:1.0, burdenMaterials:1.3, burdenTravel:1.2, burdenSubcontracts:1.2,
+    taskCategories:[],
+    chargeRates:[],
+    locations:[],
+    staff:[],       // {id,name,chargeRateId}
+    tasks:[],       // {id,categoryId,name,startDate,endDate,burnType,notes}
+    hours:{},       // "taskId-staffId": number
+    travel:[],      // {id,locationId,taskId,trips,people,daysPerTrip,startDate,endDate,perDiemOv,airfareOv,milesOv,fuelOv,vehicleOv,notes}
+    materials:[],   // {id,item,taskId,costType,cost,startDate,endDate,notes}  costType='one-time'|'ongoing'
+    subcontracts:[] // {id,vendor,description,cost,startDate,endDate,notes}
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PERSISTENCE
+   ═══════════════════════════════════════════════════════════════ */
+const SK = 'projectBudgetPlanner';
+function save() {
+  state.projectName = Q('#projectName').value;
+  state.fiscalYear = Q('#fiscalYear').value;
+  state.projectStart = Q('#projectStart').value;
+  state.projectDuration = parseInt(Q('#projectDuration').value) || 12;
+  state.burdenStaff = pf(Q('#burdenStaff').value) || 1;
+  state.burdenMaterials = pf(Q('#burdenMaterials').value) || 1;
+  state.burdenTravel = pf(Q('#burdenTravel').value) || 1;
+  state.burdenSubcontracts = pf(Q('#burdenSubcontracts').value) || 1;
+  localStorage.setItem(SK, JSON.stringify({state,nextId}));
+}
+function load() {
+  const raw = localStorage.getItem(SK);
+  if (raw) {
+    try {
+      const p = JSON.parse(raw); state = p.state; nextId = p.nextId || 1;
+      ['chargeRates','locations','taskCategories','tasks','staff','travel','materials','subcontracts'].forEach(k => { if (!state[k]) state[k] = []; });
+      if (!state.hours) state.hours = {};
+      // migrate old string category
+      state.tasks.forEach(t => {
+        if (t.category && !t.categoryId) {
+          let c = state.taskCategories.find(x => x.name === t.category);
+          if (!c) { c = {id:genId(),name:t.category,sortOrder:state.taskCategories.length}; state.taskCategories.push(c); }
+          t.categoryId = c.id; delete t.category;
+        }
+        if (!t.burnType) t.burnType = 'linear';
+      });
+      state.materials.forEach(m => { if (!m.costType) m.costType = 'one-time'; });
+    } catch(e) { console.warn(e); }
+  }
+  if (!state.taskCategories.length) DEFAULT_TASK_CATEGORIES.forEach((n,i) => state.taskCategories.push({id:genId(),name:n,sortOrder:i}));
+  if (!state.chargeRates.length) DEFAULT_CHARGE_RATES.forEach(r => state.chargeRates.push({id:genId(),category:r.category,rate:r.rate}));
+  if (!state.projectStart) { const d = new Date(); state.projectStart = d.toISOString().slice(0,10); }
+  Q('#projectName').value = state.projectName||'';
+  Q('#fiscalYear').value = state.fiscalYear||'';
+  Q('#projectStart').value = state.projectStart||'';
+  Q('#projectDuration').value = state.projectDuration||12;
+  Q('#burdenStaff').value = state.burdenStaff;
+  Q('#burdenMaterials').value = state.burdenMaterials;
+  Q('#burdenTravel').value = state.burdenTravel;
+  Q('#burdenSubcontracts').value = state.burdenSubcontracts;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════════════════════ */
+function Q(s) { return document.querySelector(s); }
+function pf(v) { return parseFloat(v); }
+function fmt(n) { return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function getChargeRate(id) { return state.chargeRates.find(r=>r.id===id); }
+function getStaffRate(s) { const r=getChargeRate(s.chargeRateId); return r?r.rate:0; }
+function getLoc(id) { return state.locations.find(l=>l.id===id); }
+function getTask(id) { return state.tasks.find(t=>t.id===id); }
+function getCat(id) { return state.taskCategories.find(c=>c.id===id); }
+function getCatName(id) { const c=getCat(id); return c?c.name:''; }
+function sortedCats() { return [...state.taskCategories].sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0)); }
+
+// Date/month helpers
+function getProjectMonths() {
+  const s = state.projectStart; const dur = state.projectDuration || 12;
+  if (!s) return [];
+  const start = new Date(s+'T00:00:00');
+  const months = [];
+  for (let i=0; i<dur; i++) {
+    const d = new Date(start); d.setMonth(d.getMonth()+i);
+    months.push({year:d.getFullYear(), month:d.getMonth(), label:(d.getMonth()+1)+'/'+String(d.getFullYear()).slice(2)});
+  }
+  return months;
+}
+function monthIdx(dateStr) {
+  // Return which project month (0-based) a date falls in, or -1
+  if (!dateStr || !state.projectStart) return -1;
+  const ps = new Date(state.projectStart+'T00:00:00');
+  const d = new Date(dateStr+'T00:00:00');
+  const diff = (d.getFullYear()-ps.getFullYear())*12 + (d.getMonth()-ps.getMonth());
+  return diff;
+}
+function clampIdx(i, dur) { return Math.max(0, Math.min(dur-1, i)); }
+
+// Burn rate distribution: returns array of weights for n months that sum to 1
+function burnWeights(type, n) {
+  if (n <= 0) return [];
+  if (n === 1) return [1];
+  const w = new Array(n).fill(0);
+  if (type === 'flat' || type === 'linear') { const v=1/n; w.fill(v); }
+  else if (type === 'front-heavy') { for(let i=0;i<n;i++) w[i]=n-i; }
+  else if (type === 'back-heavy') { for(let i=0;i<n;i++) w[i]=i+1; }
+  else if (type === 'bell-curve') { const mid=(n-1)/2; for(let i=0;i<n;i++) w[i]=Math.exp(-0.5*Math.pow((i-mid)/(n/4),2)); }
+  const sum = w.reduce((a,b)=>a+b,0);
+  if (sum > 0) for(let i=0;i<n;i++) w[i]/=sum;
+  return w;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MONTHLY DISTRIBUTION CALCULATOR
+   ═══════════════════════════════════════════════════════════════ */
+function calcMonthlySpending() {
+  const months = getProjectMonths();
+  const dur = months.length;
+  if (dur === 0) return {months:[], labor:[], travel:[], materials:[], subcontracts:[]};
+  const labor = new Array(dur).fill(0);
+  const travel = new Array(dur).fill(0);
+  const materials = new Array(dur).fill(0);
+  const subcontracts = new Array(dur).fill(0);
+
+  // Labor: distribute task costs by task burn rate
+  state.tasks.forEach(task => {
+    let taskCost = 0;
+    state.staff.forEach(s => { taskCost += (state.hours[task.id+'-'+s.id]||0)*getStaffRate(s); });
+    taskCost *= state.burdenStaff;
+    if (taskCost === 0) return;
+    const si = clampIdx(monthIdx(task.startDate), dur);
+    const ei = clampIdx(monthIdx(task.endDate), dur);
+    const span = ei - si + 1;
+    const weights = burnWeights(task.burnType || 'linear', span);
+    weights.forEach((w,i) => { labor[si+i] += taskCost * w; });
+  });
+
+  // Travel: distribute per trip
+  state.travel.forEach(t => {
+    const c = computeTravel(t);
+    if (c.tripTotal === 0) return;
+    const burdened = c.tripTotal * state.burdenTravel;
+    const trips = t.trips || 1;
+    if (trips === 1) {
+      const idx = clampIdx(monthIdx(t.startDate), dur);
+      travel[idx] += burdened;
+    } else {
+      const si = clampIdx(monthIdx(t.startDate), dur);
+      const ei = clampIdx(monthIdx(t.endDate || t.startDate), dur);
+      const span = Math.max(1, ei - si + 1);
+      for (let i=0; i<trips; i++) {
+        const idx = clampIdx(si + Math.round(i * span / Math.max(1, trips-1 || 1)), dur);
+        travel[idx] += burdened / trips;
+      }
+    }
+  });
+
+  // Materials
+  state.materials.forEach(m => {
+    if (m.costType === 'ongoing') {
+      const si = clampIdx(monthIdx(m.startDate), dur);
+      const ei = clampIdx(monthIdx(m.endDate || m.startDate), dur);
+      const span = ei - si + 1;
+      const monthly = (m.cost || 0) * state.burdenMaterials;
+      for (let i=si; i<=ei; i++) materials[i] += monthly;
+    } else {
+      const idx = clampIdx(monthIdx(m.startDate), dur);
+      materials[idx] += (m.cost || 0) * state.burdenMaterials;
+    }
+  });
+
+  // Subcontracts
+  state.subcontracts.forEach(s => {
+    const cost = (s.cost || 0) * state.burdenSubcontracts;
+    if (!s.endDate || s.startDate === s.endDate) {
+      const idx = clampIdx(monthIdx(s.startDate), dur);
+      subcontracts[idx] += cost;
+    } else {
+      const si = clampIdx(monthIdx(s.startDate), dur);
+      const ei = clampIdx(monthIdx(s.endDate), dur);
+      const span = ei - si + 1;
+      for (let i=si; i<=ei; i++) subcontracts[i] += cost/span;
+    }
+  });
+
+  return {months, labor, travel, materials, subcontracts};
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHART RENDERING
+   ═══════════════════════════════════════════════════════════════ */
+function renderChart() {
+  const data = calcMonthlySpending();
+  const barsEl = Q('#chartBars');
+  const labelsEl = Q('#chartLabels');
+  if (data.months.length === 0) {
+    barsEl.innerHTML = '<p class="text-muted" style="margin:auto">Set a project start date to see the chart.</p>';
+    labelsEl.innerHTML = '';
+    return;
+  }
+  // Find max stacked height
+  let maxH = 0;
+  for (let i=0; i<data.months.length; i++) {
+    const total = data.labor[i]+data.travel[i]+data.materials[i]+data.subcontracts[i];
+    if (total > maxH) maxH = total;
+  }
+  if (maxH === 0) maxH = 1;
+
+  let barsHtml = '';
+  let labelsHtml = '';
+  const height = 140; // px
+  for (let i=0; i<data.months.length; i++) {
+    const l = data.labor[i], tr = data.travel[i], m = data.materials[i], sc = data.subcontracts[i];
+    const total = l+tr+m+sc;
+    const lH = (l/maxH)*height, trH = (tr/maxH)*height, mH = (m/maxH)*height, scH = (sc/maxH)*height;
+    barsHtml += `<div class="chart-bar-group">`;
+    barsHtml += `<div class="chart-tooltip">${data.months[i].label}: ${fmt(total)}<br>L:${fmt(l)} T:${fmt(tr)} M:${fmt(m)} S:${fmt(sc)}</div>`;
+    if (scH>0) barsHtml += `<div class="chart-bar subcontracts" style="height:${scH}px"></div>`;
+    if (mH>0) barsHtml += `<div class="chart-bar materials" style="height:${mH}px"></div>`;
+    if (trH>0) barsHtml += `<div class="chart-bar travel" style="height:${trH}px"></div>`;
+    if (lH>0) barsHtml += `<div class="chart-bar labor" style="height:${lH}px"></div>`;
+    barsHtml += '</div>';
+    labelsHtml += `<span>${data.months[i].label}</span>`;
+  }
+  barsEl.innerHTML = barsHtml;
+  labelsEl.innerHTML = labelsHtml;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB SWITCHING
+   ═══════════════════════════════════════════════════════════════ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   TASK CATEGORIES
+   ═══════════════════════════════════════════════════════════════ */
+function renderTaskCategoriesTable() {
+  const w=Q('#taskCategoriesTableWrap'), sorted=sortedCats();
+  if (!sorted.length) { w.innerHTML='<p class="text-muted mt-1">No categories. Click "+ Add Category".</p>'; return; }
+  let h='<table><thead><tr><th style="width:50px">Order</th><th>Name</th><th style="width:80px">Tasks</th><th style="width:36px"></th></tr></thead><tbody>';
+  sorted.forEach(c => { const idx=state.taskCategories.indexOf(c), n=state.tasks.filter(t=>t.categoryId===c.id).length;
+    h+=`<tr><td><input type="number" min="0" step="1" value="${c.sortOrder??idx}" onchange="state.taskCategories[${idx}].sortOrder=parseInt(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td><input value="${esc(c.name)}" onchange="state.taskCategories[${idx}].name=this.value;save();recalcAll()"></td>`;
+    h+=`<td class="computed-sub" style="text-align:center">${n}</td>`;
+    h+=`<td class="action-cell"><button class="btn-icon" onclick="removeTaskCategory(${c.id})">✕</button></td></tr>`;
+  });
+  h+='</tbody></table>'; w.innerHTML=h;
+}
+function addTaskCategory() { const m=state.taskCategories.reduce((a,c)=>Math.max(a,c.sortOrder||0),-1); state.taskCategories.push({id:genId(),name:'',sortOrder:m+1}); save();recalcAll(); }
+function removeTaskCategory(id) { const u=state.tasks.filter(t=>t.categoryId===id); if(u.length&&!confirm(u.length+' task(s) use this. Continue?'))return; u.forEach(t=>{t.categoryId=null;}); state.taskCategories=state.taskCategories.filter(c=>c.id!==id); save();recalcAll(); }
+
+/* ═══════════════════════════════════════════════════════════════
+   CHARGE RATES
+   ═══════════════════════════════════════════════════════════════ */
+function renderChargeRatesTable() {
+  const w=Q('#chargeRatesTableWrap');
+  if(!state.chargeRates.length){w.innerHTML='<p class="text-muted mt-1">No rates. Click "+ Add Rate".</p>';return;}
+  let h='<table><thead><tr><th style="width:40px">#</th><th>Category</th><th style="width:130px">Rate ($/hr)</th><th style="width:70px">Staff</th><th style="width:36px"></th></tr></thead><tbody>';
+  state.chargeRates.forEach((r,i)=>{const n=state.staff.filter(s=>s.chargeRateId===r.id).length;
+    h+=`<tr><td class="computed-sub" style="text-align:center">${i+1}</td>`;
+    h+=`<td><input value="${esc(r.category)}" onchange="state.chargeRates[${i}].category=this.value;save();recalcAll()"></td>`;
+    h+=`<td><input type="number" min="0" step="0.01" value="${r.rate||''}" onchange="state.chargeRates[${i}].rate=pf(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td class="computed-sub" style="text-align:center">${n}</td>`;
+    h+=`<td class="action-cell"><button class="btn-icon" onclick="removeChargeRate(${r.id})">✕</button></td></tr>`;
+  });
+  h+='</tbody></table>'; w.innerHTML=h;
+}
+function addChargeRate(){state.chargeRates.push({id:genId(),category:'',rate:0});save();recalcAll();}
+function removeChargeRate(id){const u=state.staff.filter(s=>s.chargeRateId===id);if(u.length&&!confirm(u.length+' staff use this. Continue?'))return;u.forEach(s=>{s.chargeRateId=null;});state.chargeRates=state.chargeRates.filter(r=>r.id!==id);save();recalcAll();}
+function importChargeRates(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(e){const t=e.target.result.trim();let entries=[];try{const p=JSON.parse(t);if(Array.isArray(p))entries=p.map(r=>({category:String(r.category||r.name||r.Category||'').trim(),rate:pf(r.rate||r.Rate||0)||0})).filter(r=>r.category);}catch(_){t.split(/\r?\n/).filter(l=>l.trim()).forEach(line=>{if(/^(category|name|rate)/i.test(line.trim()))return;const parts=line.split(',');const cat=(parts[0]||'').replace(/^["']|["']$/g,'').trim();const rate=pf((parts[1]||'0').replace(/^["']|["']$/g,''))||0;if(cat)entries.push({category:cat,rate});});}if(!entries.length){alert('No valid entries found.');return;}let added=0,updated=0;entries.forEach(en=>{const ex=state.chargeRates.find(r=>r.category.toLowerCase()===en.category.toLowerCase());if(ex){if(en.rate>0){ex.rate=en.rate;updated++;}}else{state.chargeRates.push({id:genId(),category:en.category,rate:en.rate});added++;}});save();recalcAll();alert(`Import: ${added} added, ${updated} updated.`);};r.readAsText(f);ev.target.value='';}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOCATIONS
+   ═══════════════════════════════════════════════════════════════ */
+function renderLocationsTable() {
+  const w=Q('#locationsTableWrap');
+  if(!state.locations.length){w.innerHTML='<p class="text-muted mt-1">No locations. Click "+ Add Location".</p>';return;}
+  let h='<table><thead><tr><th style="width:40px">#</th><th>Name</th><th>Distance (mi)</th><th>Airfare ($/person)</th><th>Per Diem ($/day/person)</th><th>Vehicle ($/day)</th><th>Fuel ($/mi)</th><th style="width:36px"></th></tr></thead><tbody>';
+  state.locations.forEach((l,i)=>{
+    h+=`<tr><td class="computed-sub" style="text-align:center">${i+1}</td>`;
+    h+=`<td><input value="${esc(l.name)}" onchange="state.locations[${i}].name=this.value;save();recalcAll()"></td>`;
+    h+=`<td><input type="number" min="0" step="1" value="${l.distance||''}" onchange="state.locations[${i}].distance=pf(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td><input type="number" min="0" step="0.01" value="${l.airfare||''}" onchange="state.locations[${i}].airfare=pf(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td><input type="number" min="0" step="0.01" value="${l.perDiem||''}" onchange="state.locations[${i}].perDiem=pf(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td><input type="number" min="0" step="0.01" value="${l.vehiclePerDay||''}" onchange="state.locations[${i}].vehiclePerDay=pf(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td><input type="number" min="0" step="0.01" value="${l.fuelPerMile||''}" onchange="state.locations[${i}].fuelPerMile=pf(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td class="action-cell"><button class="btn-icon" onclick="removeLoc(${l.id})">✕</button></td></tr>`;
+  });
+  h+='</tbody></table>'; w.innerHTML=h;
+}
+function addLocation(){state.locations.push({id:genId(),name:'',distance:0,airfare:0,perDiem:200,vehiclePerDay:75,fuelPerMile:0.40});save();recalcAll();}
+function removeLoc(id){const u=state.travel.filter(t=>t.locationId===id);if(u.length&&!confirm(u.length+' travel entries use this. Continue?'))return;u.forEach(t=>{t.locationId=null;});state.locations=state.locations.filter(l=>l.id!==id);save();recalcAll();}
+
+/* ═══════════════════════════════════════════════════════════════
+   TASKS TABLE (setup tab)
+   ═══════════════════════════════════════════════════════════════ */
+function catDropdown(selId, expr) {
+  let o='<option value="">— select —</option>';
+  sortedCats().forEach(c=>{o+=`<option value="${c.id}"${selId===c.id?' selected':''}>${esc(c.name)}</option>`;});
+  return `<select onchange="${expr}">${o}</select>`;
+}
+function taskDropdown(selId, expr) {
+  let o='<option value="">— none —</option>';
+  sortedCats().forEach(cat=>{const ts=state.tasks.filter(t=>t.categoryId===cat.id);if(ts.length){o+=`<optgroup label="${esc(cat.name)}">`;ts.forEach(t=>{o+=`<option value="${t.id}"${selId===t.id?' selected':''}>${esc(t.name)}</option>`;});o+='</optgroup>';}});
+  const unc=state.tasks.filter(t=>!t.categoryId);if(unc.length){o+='<optgroup label="Uncategorized">';unc.forEach(t=>{o+=`<option value="${t.id}"${selId===t.id?' selected':''}>${esc(t.name)}</option>`;});o+='</optgroup>';}
+  return `<select onchange="${expr}">${o}</select>`;
+}
+function burnDropdown(sel, expr) {
+  let o=''; BURN_TYPES.forEach(b=>{o+=`<option value="${b}"${sel===b?' selected':''}>${b}</option>`;});
+  return `<select onchange="${expr}">${o}</select>`;
+}
+
+function renderTasksTable() {
+  const w=Q('#tasksTableWrap');
+  if(!state.tasks.length){w.innerHTML='<p class="text-muted mt-1">No tasks. Click "+ Add Task".</p>';return;}
+  let h='<table><thead><tr><th style="width:30px">#</th><th>Category</th><th>Task Name</th><th>Start</th><th>End</th><th>Burn Rate</th><th>Notes</th><th style="width:36px"></th></tr></thead><tbody>';
+  // Sort by category then by order
+  const sorted=sortedCats();const order=[];
+  sorted.forEach(cat=>{state.tasks.forEach(t=>{if(t.categoryId===cat.id)order.push(t);});});
+  state.tasks.filter(t=>!t.categoryId).forEach(t=>order.push(t));
+  order.forEach(t=>{const i=state.tasks.indexOf(t);
+    h+=`<tr><td class="computed-sub" style="text-align:center">${i+1}</td>`;
+    h+=`<td>${catDropdown(t.categoryId,"state.tasks["+i+"].categoryId=this.value?parseInt(this.value):null;save();recalcAll()")}</td>`;
+    h+=`<td><input value="${esc(t.name)}" onchange="state.tasks[${i}].name=this.value;save();recalcAll()"></td>`;
+    h+=`<td><input type="date" value="${t.startDate||''}" onchange="state.tasks[${i}].startDate=this.value;save();recalcAll()"></td>`;
+    h+=`<td><input type="date" value="${t.endDate||''}" onchange="state.tasks[${i}].endDate=this.value;save();recalcAll()"></td>`;
+    h+=`<td>${burnDropdown(t.burnType||'linear',"state.tasks["+i+"].burnType=this.value;save();recalcAll()")}</td>`;
+    h+=`<td><input value="${esc(t.notes||'')}" onchange="state.tasks[${i}].notes=this.value;save()"></td>`;
+    h+=`<td class="action-cell"><button class="btn-icon" onclick="removeTask(${t.id})">✕</button></td></tr>`;
+  });
+  h+='</tbody></table>'; w.innerHTML=h;
+}
+function removeTask(id){if(!confirm('Remove this task and all hours?'))return;state.tasks=state.tasks.filter(t=>t.id!==id);Object.keys(state.hours).forEach(k=>{if(k.startsWith(id+'-'))delete state.hours[k];});save();recalcAll();}
+
+/* ═══════════════════════════════════════════════════════════════
+   LABOR TABLE
+   ═══════════════════════════════════════════════════════════════ */
+function renderLaborTable() {
+  const w=Q('#laborTableWrap');
+  if(!state.staff.length&&!state.tasks.length){w.innerHTML='<p class="text-muted mt-1">Add staff and define tasks (⚙ Tasks tab) to begin.</p>';return;}
+  let h='<table><thead>';
+  h+='<tr><th rowspan="2" style="width:30px">#</th><th rowspan="2" style="min-width:120px">Category</th><th rowspan="2" style="min-width:150px">Task</th>';
+  state.staff.forEach(s=>{const cr=getChargeRate(s.chargeRateId);h+=`<th style="min-width:95px;text-align:center">${esc(s.name)}<br><span class="text-muted" style="font-weight:400">${esc(cr?cr.category:'(none)')}</span></th>`;});
+  h+='<th rowspan="2" style="min-width:85px;text-align:right">Task Cost</th>';
+  if(state.staff.length)h+='<th rowspan="2" style="width:36px"></th>';
+  h+='</tr><tr>';
+  state.staff.forEach(s=>{h+=`<th class="text-right text-muted" style="font-weight:400">${fmt(getStaffRate(s))}/hr</th>`;});
+  h+='</tr></thead><tbody>';
+
+  const sorted=sortedCats();const order=[];
+  sorted.forEach(cat=>{state.tasks.forEach(t=>{if(t.categoryId===cat.id)order.push(t);});});
+  state.tasks.filter(t=>!t.categoryId).forEach(t=>order.push(t));
+
+  order.forEach(t=>{const ti=state.tasks.indexOf(t);
+    h+=`<tr><td class="computed-sub" style="text-align:center">${ti+1}</td>`;
+    h+=`<td style="padding:0.35rem 0.5rem">${esc(getCatName(t.categoryId))}</td>`;
+    h+=`<td style="padding:0.35rem 0.5rem">${esc(t.name)}</td>`;
+    let tc=0;
+    state.staff.forEach(s=>{const k=t.id+'-'+s.id,hrs=state.hours[k]||0;tc+=hrs*getStaffRate(s);
+      h+=`<td><input type="number" min="0" step="1" value="${hrs||''}" onchange="setHours(${t.id},${s.id},this.value)"></td>`;
+    });
+    h+=`<td class="computed">${fmt(tc)}</td>`;
+    if(state.staff.length)h+='<td></td>';
+    h+='</tr>';
+  });
+
+  h+='</tbody><tfoot>';
+  h+='<tr><td colspan="3"><strong>Total Hours</strong></td>';
+  let gH=0;state.staff.forEach(s=>{let sh=0;state.tasks.forEach(t=>{sh+=state.hours[t.id+'-'+s.id]||0;});gH+=sh;h+=`<td class="text-right">${sh}</td>`;});
+  h+=`<td class="text-right">${gH}</td>`;if(state.staff.length)h+='<td></td>';h+='</tr>';
+
+  h+='<tr><td colspan="3"><strong>Total Cost (Unburdened)</strong></td>';
+  let gC=0;state.staff.forEach(s=>{let sc=0;state.tasks.forEach(t=>{sc+=(state.hours[t.id+'-'+s.id]||0)*getStaffRate(s);});gC+=sc;h+=`<td class="computed-sub text-right">${fmt(sc)}</td>`;});
+  h+=`<td class="computed">${fmt(gC)}</td>`;if(state.staff.length)h+='<td></td>';h+='</tr>';
+
+  h+='<tr><td colspan="3"><strong>FTE (1840 hrs/yr)</strong></td>';
+  state.staff.forEach(s=>{let sh=0;state.tasks.forEach(t=>{sh+=state.hours[t.id+'-'+s.id]||0;});h+=`<td class="text-right">${(sh/1840).toFixed(3)}</td>`;});
+  h+=`<td class="text-right">${(gH/1840).toFixed(3)}</td>`;if(state.staff.length)h+='<td></td>';h+='</tr>';
+
+  h+='<tr><td colspan="3"></td>';
+  state.staff.forEach(s=>{h+=`<td style="text-align:center"><button class="btn-icon" title="Edit" onclick="openModal('editStaff',${s.id})" style="color:var(--accent)">✎</button> <button class="btn-icon" title="Remove" onclick="removeStaff(${s.id})">✕</button></td>`;});
+  h+='<td></td>';if(state.staff.length)h+='<td></td>';h+='</tr>';
+  h+='</tfoot></table>';w.innerHTML=h;
+}
+function setHours(tid,sid,v){const k=tid+'-'+sid,n=pf(v)||0;if(n>0)state.hours[k]=n;else delete state.hours[k];save();recalcAll();}
+function removeStaff(id){if(!confirm('Remove staff and hours?'))return;state.staff=state.staff.filter(s=>s.id!==id);Object.keys(state.hours).forEach(k=>{if(k.endsWith('-'+id))delete state.hours[k];});save();recalcAll();}
+
+/* ═══════════════════════════════════════════════════════════════
+   TRAVEL
+   ═══════════════════════════════════════════════════════════════ */
+function getTv(t,f,lf){if(t[f]!=null&&t[f]!=='')return pf(t[f])||0;const l=getLoc(t.locationId);return l&&lf?pf(l[lf])||0:0;}
+function computeTravel(t){
+  const pd=getTv(t,'perDiemOv','perDiem'),af=getTv(t,'airfareOv','airfare'),mi=getTv(t,'milesOv','distance'),fr=getTv(t,'fuelOv','fuelPerMile'),vr=getTv(t,'vehicleOv','vehiclePerDay');
+  const tr=t.trips||0,pp=t.people||0,dy=t.daysPerTrip||0,td=tr*pp*dy;
+  return{totalDays:td,perDiemTotal:td*pd,airfareTotal:tr*pp*af,fuelTotal:tr*mi*fr,vehicleTotal:tr*dy*vr,tripTotal:td*pd+tr*pp*af+tr*mi*fr+tr*dy*vr,perDiem:pd,airfare:af,miles:mi,fuelRate:fr,vehicleRate:vr};
+}
+function renderTravelTable(){
+  const w=Q('#travelTableWrap');
+  if(!state.travel.length){w.innerHTML='<p class="text-muted mt-1">No trips. Click "+ Add Trip".</p>';return;}
+  let h='<table><thead><tr><th style="width:30px">#</th><th>Location</th><th>Task</th><th># Trips</th><th># People</th><th>Days/Trip</th><th>Start</th><th>End</th><th>Total Days</th><th>Trip Total</th><th>Notes</th><th style="width:36px"></th></tr></thead><tbody>';
+  let gt=0;
+  state.travel.forEach((t,i)=>{const c=computeTravel(t);gt+=c.tripTotal;
+    let locO='<option value="">—</option>';state.locations.forEach(l=>{locO+=`<option value="${l.id}"${t.locationId===l.id?' selected':''}>${esc(l.name)}</option>`;});
+    h+='<tr>';
+    h+=`<td class="computed-sub" style="text-align:center">${i+1}</td>`;
+    h+=`<td><select onchange="state.travel[${i}].locationId=this.value?parseInt(this.value):null;save();recalcAll()">${locO}</select></td>`;
+    h+=`<td>${taskDropdown(t.taskId,"state.travel["+i+"].taskId=this.value?parseInt(this.value):null;save()")}</td>`;
+    h+=`<td><input type="number" min="0" step="1" value="${t.trips||''}" onchange="state.travel[${i}].trips=pf(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td><input type="number" min="0" step="0.5" value="${t.people||''}" onchange="state.travel[${i}].people=pf(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td><input type="number" min="0" step="1" value="${t.daysPerTrip||''}" onchange="state.travel[${i}].daysPerTrip=pf(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td><input type="date" value="${t.startDate||''}" onchange="state.travel[${i}].startDate=this.value;save();recalcAll()"></td>`;
+    h+=`<td><input type="date" value="${t.endDate||''}" onchange="state.travel[${i}].endDate=this.value;save();recalcAll()"></td>`;
+    h+=`<td class="computed-sub">${c.totalDays}</td>`;
+    h+=`<td class="computed">${fmt(c.tripTotal)}</td>`;
+    h+=`<td><input value="${esc(t.notes||'')}" onchange="state.travel[${i}].notes=this.value;save()"></td>`;
+    h+=`<td class="action-cell"><button class="btn-icon" onclick="removeTravelRow(${t.id})">✕</button></td></tr>`;
+    // detail row
+    h+=`<tr style="background:#f9fafb"><td></td><td colspan="11" style="padding:0.3rem 0.5rem"><span class="text-muted" style="font-size:0.8rem">`;
+    h+=`PD:${fmt(c.perDiem)}/d/p×${c.totalDays}pd=<b>${fmt(c.perDiemTotal)}</b> · AF:${fmt(c.airfare)}/p×${(t.trips||0)*(t.people||0)}=<b>${fmt(c.airfareTotal)}</b> · Fuel:${c.miles}mi×${fmt(c.fuelRate)}×${t.trips||0}=<b>${fmt(c.fuelTotal)}</b> · Veh:${fmt(c.vehicleRate)}/d×${(t.trips||0)*(t.daysPerTrip||0)}=<b>${fmt(c.vehicleTotal)}</b>`;
+    h+=`</span> <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:0.1rem 0.3rem;margin-left:0.3rem" onclick="openModal('travelOv',${i})">Override</button></td></tr>`;
+  });
+  h+=`</tbody><tfoot><tr><td colspan="9"><strong>Total (Unburdened)</strong></td><td class="computed">${fmt(gt)}</td><td colspan="2"></td></tr></tfoot></table>`;
+  w.innerHTML=h;
+}
+function addTravelRow(){const ps=state.projectStart||'';state.travel.push({id:genId(),locationId:null,taskId:null,trips:1,people:1,daysPerTrip:1,startDate:ps,endDate:ps,perDiemOv:null,airfareOv:null,milesOv:null,fuelOv:null,vehicleOv:null,notes:''});save();recalcAll();}
+function removeTravelRow(id){if(!confirm('Remove trip?'))return;state.travel=state.travel.filter(t=>t.id!==id);save();recalcAll();}
+
+/* ═══════════════════════════════════════════════════════════════
+   MATERIALS
+   ═══════════════════════════════════════════════════════════════ */
+function renderMaterialsTable(){
+  const w=Q('#materialsTableWrap');
+  if(!state.materials.length){w.innerHTML='<p class="text-muted mt-1">No items. Click "+ Add Item".</p>';return;}
+  let h='<table><thead><tr><th style="width:30px">#</th><th>Item</th><th>Task</th><th>Type</th><th style="width:110px">Cost ($)</th><th>Date / Start</th><th>End</th><th>Total</th><th>Notes</th><th style="width:36px"></th></tr></thead><tbody>';
+  let gt=0;
+  state.materials.forEach((m,i)=>{
+    const isOngoing = m.costType==='ongoing';
+    let total = m.cost||0;
+    if (isOngoing && m.startDate && m.endDate) {
+      const si=monthIdx(m.startDate), ei=monthIdx(m.endDate);
+      const span = Math.max(1, ei-si+1);
+      total = (m.cost||0) * span;
+    }
+    gt+=total;
+    let typeO=`<option value="one-time"${m.costType!=='ongoing'?' selected':''}>One-time</option><option value="ongoing"${m.costType==='ongoing'?' selected':''}>Ongoing ($/mo)</option>`;
+    h+='<tr>';
+    h+=`<td class="computed-sub" style="text-align:center">${i+1}</td>`;
+    h+=`<td><input value="${esc(m.item)}" onchange="state.materials[${i}].item=this.value;save()"></td>`;
+    h+=`<td>${taskDropdown(m.taskId,"state.materials["+i+"].taskId=this.value?parseInt(this.value):null;save()")}</td>`;
+    h+=`<td><select onchange="state.materials[${i}].costType=this.value;save();recalcAll()">${typeO}</select></td>`;
+    h+=`<td><input type="number" min="0" step="0.01" value="${m.cost||''}" onchange="state.materials[${i}].cost=pf(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td><input type="date" value="${m.startDate||''}" onchange="state.materials[${i}].startDate=this.value;save();recalcAll()"></td>`;
+    h+=`<td><input type="date" value="${m.endDate||''}" ${!isOngoing?'disabled':''} onchange="state.materials[${i}].endDate=this.value;save();recalcAll()"></td>`;
+    h+=`<td class="computed">${fmt(total)}</td>`;
+    h+=`<td><input value="${esc(m.notes||'')}" onchange="state.materials[${i}].notes=this.value;save()"></td>`;
+    h+=`<td class="action-cell"><button class="btn-icon" onclick="removeMat(${m.id})">✕</button></td></tr>`;
+  });
+  h+=`</tbody><tfoot><tr><td colspan="7"><strong>Total (Unburdened)</strong></td><td class="computed">${fmt(gt)}</td><td colspan="2"></td></tr></tfoot></table>`;
+  w.innerHTML=h;
+}
+function addMaterialRow(){const ps=state.projectStart||'';state.materials.push({id:genId(),item:'',taskId:null,costType:'one-time',cost:0,startDate:ps,endDate:'',notes:''});save();recalcAll();}
+function removeMat(id){if(!confirm('Remove item?'))return;state.materials=state.materials.filter(m=>m.id!==id);save();recalcAll();}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUBCONTRACTS
+   ═══════════════════════════════════════════════════════════════ */
+function renderSubcontractsTable(){
+  const w=Q('#subcontractsTableWrap');
+  if(!state.subcontracts.length){w.innerHTML='<p class="text-muted mt-1">No subcontracts. Click "+ Add Subcontract".</p>';return;}
+  let h='<table><thead><tr><th style="width:30px">#</th><th>Vendor</th><th>Description</th><th style="width:120px">Cost</th><th>Start</th><th>End</th><th>Notes</th><th style="width:36px"></th></tr></thead><tbody>';
+  let gt=0;
+  state.subcontracts.forEach((s,i)=>{gt+=s.cost||0;
+    h+='<tr>';
+    h+=`<td class="computed-sub" style="text-align:center">${i+1}</td>`;
+    h+=`<td><input value="${esc(s.vendor)}" onchange="state.subcontracts[${i}].vendor=this.value;save()"></td>`;
+    h+=`<td><input value="${esc(s.description)}" onchange="state.subcontracts[${i}].description=this.value;save()"></td>`;
+    h+=`<td><input type="number" min="0" step="0.01" value="${s.cost||''}" onchange="state.subcontracts[${i}].cost=pf(this.value)||0;save();recalcAll()"></td>`;
+    h+=`<td><input type="date" value="${s.startDate||''}" onchange="state.subcontracts[${i}].startDate=this.value;save();recalcAll()"></td>`;
+    h+=`<td><input type="date" value="${s.endDate||''}" onchange="state.subcontracts[${i}].endDate=this.value;save();recalcAll()"></td>`;
+    h+=`<td><input value="${esc(s.notes||'')}" onchange="state.subcontracts[${i}].notes=this.value;save()"></td>`;
+    h+=`<td class="action-cell"><button class="btn-icon" onclick="removeSub(${s.id})">✕</button></td></tr>`;
+  });
+  h+=`</tbody><tfoot><tr><td colspan="3"><strong>Total (Unburdened)</strong></td><td class="computed">${fmt(gt)}</td><td colspan="4"></td></tr></tfoot></table>`;
+  w.innerHTML=h;
+}
+function addSubcontractRow(){const ps=state.projectStart||'';state.subcontracts.push({id:genId(),vendor:'',description:'',cost:0,startDate:ps,endDate:'',notes:''});save();recalcAll();}
+function removeSub(id){if(!confirm('Remove?'))return;state.subcontracts=state.subcontracts.filter(s=>s.id!==id);save();recalcAll();}
+
+/* ═══════════════════════════════════════════════════════════════
+   RECALCULATE & RENDER
+   ═══════════════════════════════════════════════════════════════ */
+function recalcAll(){
+  save();
+  let staffCost=0;state.tasks.forEach(t=>{state.staff.forEach(s=>{staffCost+=(state.hours[t.id+'-'+s.id]||0)*getStaffRate(s);});});
+  const bStaff=staffCost*state.burdenStaff;
+
+  let travelCost=0;state.travel.forEach(t=>{travelCost+=computeTravel(t).tripTotal;});
+  const bTravel=travelCost*state.burdenTravel;
+
+  let matCost=0;state.materials.forEach(m=>{
+    if(m.costType==='ongoing'&&m.startDate&&m.endDate){const si=monthIdx(m.startDate),ei=monthIdx(m.endDate);matCost+=(m.cost||0)*Math.max(1,ei-si+1);}
+    else matCost+=m.cost||0;
+  });
+  const bMat=matCost*state.burdenMaterials;
+
+  let subCost=0;state.subcontracts.forEach(s=>{subCost+=s.cost||0;});
+  const bSub=subCost*state.burdenSubcontracts;
+
+  Q('#totalStaff').textContent=fmt(bStaff);
+  Q('#totalTravel').textContent=fmt(bTravel);
+  Q('#totalMaterials').textContent=fmt(bMat);
+  Q('#totalSubcontracts').textContent=fmt(bSub);
+  Q('#grandTotal').textContent=fmt(bStaff+bTravel+bMat+bSub);
+
+  renderTaskCategoriesTable();renderChargeRatesTable();renderLocationsTable();
+  renderTasksTable();renderLaborTable();renderTravelTable();renderMaterialsTable();renderSubcontractsTable();
+  renderChart();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODALS
+   ═══════════════════════════════════════════════════════════════ */
+function openModal(type,extra){
+  const ov=Q('#modalOverlay'),ct=Q('#modalContent');
+  if(type==='addStaff'){
+    let ro='<option value="">— select —</option>';state.chargeRates.forEach(r=>{ro+=`<option value="${r.id}">${esc(r.category)} — ${fmt(r.rate)}/hr</option>`;});
+    ct.innerHTML=`<h2>Add Staff</h2><div class="form-group"><label>Name</label><input id="m_name" placeholder="Jane Smith"></div><div class="form-group"><label>Charge Rate</label><select id="m_rateId">${ro}</select></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitAddStaff()">Add</button></div>`;
+  } else if(type==='editStaff'){
+    const s=state.staff.find(x=>x.id===extra);if(!s)return;
+    let ro='<option value="">— none —</option>';state.chargeRates.forEach(r=>{ro+=`<option value="${r.id}"${s.chargeRateId===r.id?' selected':''}>${esc(r.category)} — ${fmt(r.rate)}/hr</option>`;});
+    ct.innerHTML=`<h2>Edit Staff</h2><div class="form-group"><label>Name</label><input id="m_editName" value="${esc(s.name)}"></div><div class="form-group"><label>Charge Rate</label><select id="m_editRateId">${ro}</select></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitEditStaff(${extra})">Save</button></div>`;
+  } else if(type==='addTask'){
+    let co='<option value="">— select —</option>';sortedCats().forEach(c=>{co+=`<option value="${c.id}">${esc(c.name)}</option>`;});
+    const ps=state.projectStart||'';
+    const months=state.projectDuration||12;
+    const pe=ps?(() => {const d=new Date(ps+'T00:00:00');d.setMonth(d.getMonth()+months);return d.toISOString().slice(0,10);})():'';
+    let bo='';BURN_TYPES.forEach(b=>{bo+=`<option value="${b}"${b==='linear'?' selected':''}>${b}</option>`;});
+    ct.innerHTML=`<h2>Add Task</h2><div class="form-group"><label>Category</label><select id="m_catId">${co}</select></div><div class="form-group"><label>Task Name</label><input id="m_task" placeholder="Lab testing"></div><div class="form-group"><label>Start Date</label><input type="date" id="m_start" value="${ps}"></div><div class="form-group"><label>End Date</label><input type="date" id="m_end" value="${pe}"></div><div class="form-group"><label>Burn Rate</label><select id="m_burn">${bo}</select></div><div class="form-group"><label>Notes</label><input id="m_notes"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitAddTask()">Add</button></div>`;
+  } else if(type==='travelOv'){
+    const t=state.travel[extra],l=getLoc(t.locationId);
+    const ph=(f,lf)=>l?'location: '+(l[lf]||0):'no location';
+    ct.innerHTML=`<h2>Override Rates (Trip #${extra+1})</h2><p class="text-muted" style="margin-bottom:0.75rem">Blank = use location default.</p><div class="form-group"><label>Per Diem ($/day/person)</label><input id="ov_pd" type="number" step="0.01" value="${t.perDiemOv??''}" placeholder="${ph('','perDiem')}"></div><div class="form-group"><label>Airfare ($/person)</label><input id="ov_af" type="number" step="0.01" value="${t.airfareOv??''}" placeholder="${ph('','airfare')}"></div><div class="form-group"><label>Miles/trip</label><input id="ov_mi" type="number" step="1" value="${t.milesOv??''}" placeholder="${ph('','distance')}"></div><div class="form-group"><label>Fuel ($/mi)</label><input id="ov_fr" type="number" step="0.01" value="${t.fuelOv??''}" placeholder="${ph('','fuelPerMile')}"></div><div class="form-group"><label>Vehicle ($/day)</label><input id="ov_vr" type="number" step="0.01" value="${t.vehicleOv??''}" placeholder="${ph('','vehiclePerDay')}"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-outline" onclick="clearTravelOv(${extra})">Clear All</button><button class="btn btn-primary" onclick="saveTravelOv(${extra})">Save</button></div>`;
+  }
+  ov.classList.add('active');
+}
+function closeModal(){Q('#modalOverlay').classList.remove('active');}
+function submitAddStaff(){const n=Q('#m_name').value.trim(),r=Q('#m_rateId').value;if(!n){alert('Enter a name.');return;}state.staff.push({id:genId(),name:n,chargeRateId:r?parseInt(r):null});closeModal();save();recalcAll();}
+function submitEditStaff(id){const s=state.staff.find(x=>x.id===id);if(!s)return;const n=Q('#m_editName').value.trim(),r=Q('#m_editRateId').value;if(!n){alert('Enter a name.');return;}s.name=n;s.chargeRateId=r?parseInt(r):null;closeModal();save();recalcAll();}
+function submitAddTask(){const ci=Q('#m_catId').value,n=Q('#m_task').value.trim(),sd=Q('#m_start').value,ed=Q('#m_end').value,bt=Q('#m_burn').value,nt=Q('#m_notes').value.trim();if(!n){alert('Enter a name.');return;}state.tasks.push({id:genId(),categoryId:ci?parseInt(ci):null,name:n,startDate:sd,endDate:ed,burnType:bt,notes:nt});closeModal();save();recalcAll();}
+function saveTravelOv(i){const p=id=>{const v=Q('#'+id).value;return v===''?null:(pf(v)||0);};state.travel[i].perDiemOv=p('ov_pd');state.travel[i].airfareOv=p('ov_af');state.travel[i].milesOv=p('ov_mi');state.travel[i].fuelOv=p('ov_fr');state.travel[i].vehicleOv=p('ov_vr');closeModal();save();recalcAll();}
+function clearTravelOv(i){state.travel[i].perDiemOv=null;state.travel[i].airfareOv=null;state.travel[i].milesOv=null;state.travel[i].fuelOv=null;state.travel[i].vehicleOv=null;closeModal();save();recalcAll();}
+
+/* ═══════════════════════════════════════════════════════════════
+   IMPORT / EXPORT
+   ═══════════════════════════════════════════════════════════════ */
+function timestamp(){const d=new Date();return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'_'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0');}
+function filePrefix(){return (state.projectName||'budget').replace(/[^a-z0-9]/gi,'_')+'_'+timestamp();}
+function exportJSON(){save();const b=new Blob([JSON.stringify({state,nextId},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filePrefix()+'_budget.json';a.click();}
+function importJSON(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(e){try{const p=JSON.parse(e.target.result);state=p.state;['chargeRates','locations','taskCategories','tasks','staff','travel','materials','subcontracts'].forEach(k=>{if(!state[k])state[k]=[];});if(!state.hours)state.hours={};nextId=p.nextId||1;load();recalcAll();alert('Loaded.');}catch(err){alert('Invalid file: '+err.message);}};r.readAsText(f);ev.target.value='';}
+function exportExcel(){
+  save();
+  const wb = XLSX.utils.book_new();
+  const CF = '$#,##0.00';  // currency format
+  const PF = '0.000';      // precision format
+
+  // Helper: create sheet with auto-width, freeze panes, optional autofilter
+  function addSheet(name, aoa, opts={}) {
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    // Auto-width columns
+    const colW = [];
+    aoa.forEach(row => { row.forEach((cell, ci) => {
+      const len = String(cell==null?'':cell).length;
+      colW[ci] = Math.max(colW[ci]||8, Math.min(len+3, 45));
+    });});
+    ws['!cols'] = colW.map(w => ({wch:w}));
+    // Freeze top row(s)
+    if (opts.freeze) ws['!freeze'] = opts.freeze;
+    // Auto-filter on header row
+    if (opts.autoFilter && aoa.length > 0) {
+      const lastCol = XLSX.utils.encode_col(aoa[0].length - 1);
+      const filterRow = opts.filterRow || 0;
+      ws['!autofilter'] = {ref: 'A'+(filterRow+1)+':'+lastCol+(aoa.length)};
+    }
+    // Merge cells
+    if (opts.merges) ws['!merges'] = opts.merges;
+    // Apply number formats to specific columns
+    if (opts.numFmt) {
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let R = range.s.r; R <= range.e.r; R++) {
+        opts.numFmt.forEach(({col, fmt: f, startRow}) => {
+          if (startRow !== undefined && R < startRow) return;
+          const addr = XLSX.utils.encode_cell({r:R, c:col});
+          if (ws[addr] && typeof ws[addr].v === 'number') ws[addr].z = f;
+        });
+      }
+    }
+    // Protect sheet
+    ws['!protect'] = {password:'', sheet:true, objects:true, scenarios:true,
+      formatCells:false, formatColumns:false, formatRows:false, sort:false, autoFilter:false};
+    XLSX.utils.book_append_sheet(wb, ws, name);
+    return ws;
+  }
+
+  // ── Summary sheet ──
+  let staffCost=0;state.tasks.forEach(t=>{state.staff.forEach(s=>{staffCost+=(state.hours[t.id+'-'+s.id]||0)*getStaffRate(s);});});
+  let travelCost=0;state.travel.forEach(t=>{travelCost+=computeTravel(t).tripTotal;});
+  let matCost=0;state.materials.forEach(m=>{if(m.costType==='ongoing'&&m.startDate&&m.endDate){const si=monthIdx(m.startDate),ei=monthIdx(m.endDate);matCost+=(m.cost||0)*Math.max(1,ei-si+1);}else matCost+=m.cost||0;});
+  let subCost=0;state.subcontracts.forEach(s=>{subCost+=s.cost||0;});
+  const grand = staffCost*state.burdenStaff+travelCost*state.burdenTravel+matCost*state.burdenMaterials+subCost*state.burdenSubcontracts;
+
+  const sumData = [
+    ['PROJECT BUDGET SUMMARY','','',''],
+    [],
+    ['Project:', state.projectName||'','',''],
+    ['Fiscal Year:', state.fiscalYear||'','',''],
+    ['Start Date:', state.projectStart||'','',''],
+    ['Duration:', (state.projectDuration||12)+' months','',''],
+    [],
+    ['COST CATEGORY', 'UNBURDENED', 'BURDEN RATE', 'BURDENED'],
+    ['Labor', staffCost, state.burdenStaff+'×', staffCost*state.burdenStaff],
+    ['Travel', travelCost, state.burdenTravel+'×', travelCost*state.burdenTravel],
+    ['Materials', matCost, state.burdenMaterials+'×', matCost*state.burdenMaterials],
+    ['Subcontracts', subCost, state.burdenSubcontracts+'×', subCost*state.burdenSubcontracts],
+    [],
+    ['GRAND TOTAL', staffCost+travelCost+matCost+subCost, '', grand],
+    [],
+    ['Generated:', new Date().toLocaleString(),'',''],
+  ];
+  addSheet('Summary', sumData, {
+    merges: [{s:{r:0,c:0},e:{r:0,c:3}}],
+    numFmt: [
+      {col:1, fmt:CF, startRow:8}, {col:3, fmt:CF, startRow:8}
+    ]
+  });
+
+  // ── Monthly Spending sheet ──
+  const md = calcMonthlySpending();
+  if (md.months.length) {
+    const msData = [['MONTHLY SPENDING (BURDENED)','','','','','']];
+    msData.push(['Month','Labor','Travel','Materials','Subcontracts','Total']);
+    let cumL=0,cumTr=0,cumM=0,cumS=0;
+    for(let i=0;i<md.months.length;i++){
+      const tot=md.labor[i]+md.travel[i]+md.materials[i]+md.subcontracts[i];
+      msData.push([md.months[i].label, md.labor[i], md.travel[i], md.materials[i], md.subcontracts[i], tot]);
+      cumL+=md.labor[i]; cumTr+=md.travel[i]; cumM+=md.materials[i]; cumS+=md.subcontracts[i];
+    }
+    msData.push([]);
+    msData.push(['CUMULATIVE TOTAL', cumL, cumTr, cumM, cumS, cumL+cumTr+cumM+cumS]);
+    addSheet('Monthly Spending', msData, {
+      merges: [{s:{r:0,c:0},e:{r:0,c:5}}],
+      autoFilter: true, filterRow: 1,
+      numFmt: [{col:1,fmt:CF,startRow:2},{col:2,fmt:CF,startRow:2},{col:3,fmt:CF,startRow:2},{col:4,fmt:CF,startRow:2},{col:5,fmt:CF,startRow:2}]
+    });
+  }
+
+  // ── Labor sheet ──
+  const labTitle = ['LABOR HOURS & COSTS',''];
+  for(let i=0;i<state.staff.length;i++) labTitle.push('');
+  labTitle.push('');
+  const labHdr = ['Category','Task',...state.staff.map(s=>{const cr=getChargeRate(s.chargeRateId);return s.name+'\n'+(cr?cr.category:'')+ '\n'+fmt(getStaffRate(s))+'/hr';}),'Task Cost'];
+  const labData = [labTitle, labHdr];
+  const sorted=sortedCats();const order=[];
+  sorted.forEach(cat=>{state.tasks.forEach(t=>{if(t.categoryId===cat.id)order.push(t);});});
+  state.tasks.filter(t=>!t.categoryId).forEach(t=>order.push(t));
+  order.forEach(t=>{
+    const row=[getCatName(t.categoryId), t.name];
+    let tc=0;
+    state.staff.forEach(s=>{const h=state.hours[t.id+'-'+s.id]||0;tc+=h*getStaffRate(s);row.push(h||'');});
+    row.push(tc);
+    labData.push(row);
+  });
+  labData.push([]);
+  const totRow=['','TOTAL HOURS'];let gC=0;
+  state.staff.forEach(s=>{let sh=0;state.tasks.forEach(t=>{sh+=state.hours[t.id+'-'+s.id]||0;});totRow.push(sh);});
+  state.tasks.forEach(t=>{state.staff.forEach(s=>{gC+=(state.hours[t.id+'-'+s.id]||0)*getStaffRate(s);});});
+  totRow.push('');labData.push(totRow);
+  const costRow=['','TOTAL COST'];
+  state.staff.forEach(s=>{let sc=0;state.tasks.forEach(t=>{sc+=(state.hours[t.id+'-'+s.id]||0)*getStaffRate(s);});costRow.push(sc);});
+  costRow.push(gC);labData.push(costRow);
+  const fteRow=['','FTE (1840 hrs/yr)'];
+  state.staff.forEach(s=>{let sh=0;state.tasks.forEach(t=>{sh+=state.hours[t.id+'-'+s.id]||0;});fteRow.push(+(sh/1840).toFixed(3));});
+  fteRow.push('');labData.push(fteRow);
+  const lastStaffCol = 2 + state.staff.length;
+  const labFmts = [{col:lastStaffCol, fmt:CF, startRow:2}];
+  // Cost row formatting
+  for(let c=2;c<=lastStaffCol;c++) labFmts.push({col:c, fmt:CF, startRow:labData.length-2});
+  addSheet('Labor', labData, {
+    merges: [{s:{r:0,c:0},e:{r:0,c:lastStaffCol}}],
+    autoFilter: true, filterRow: 1,
+    numFmt: labFmts
+  });
+
+  // ── Staff sheet ──
+  const staffData=[['STAFF ROSTER','',''],['Name','Charge Rate Category','Rate ($/hr)']];
+  state.staff.forEach(s=>{const cr=getChargeRate(s.chargeRateId);staffData.push([s.name,cr?cr.category:'(none)',cr?cr.rate:0]);});
+  addSheet('Staff', staffData, {
+    merges: [{s:{r:0,c:0},e:{r:0,c:2}}],
+    autoFilter: true, filterRow: 1,
+    numFmt: [{col:2, fmt:CF, startRow:2}]
+  });
+
+  // ── Tasks sheet ──
+  const taskData=[['TASK DEFINITIONS','','','','',''],['Category','Task','Start','End','Burn Rate','Notes']];
+  state.tasks.forEach(t=>{taskData.push([getCatName(t.categoryId),t.name,t.startDate||'',t.endDate||'',t.burnType||'linear',t.notes||'']);});
+  addSheet('Tasks', taskData, {
+    merges: [{s:{r:0,c:0},e:{r:0,c:5}}],
+    autoFilter: true, filterRow: 1
+  });
+
+  // ── Travel sheet ──
+  const trvData=[['TRAVEL EXPENSES','','','','','','','','','','','','',''],
+    ['Location','Task','# Trips','# People','Days/Trip','Total Days','Start','End','Per Diem','Airfare','Fuel','Vehicle','Trip Total','Notes']];
+  state.travel.forEach(t=>{const l=getLoc(t.locationId),tk=getTask(t.taskId),c=computeTravel(t);
+    trvData.push([l?l.name:'',tk?tk.name:'',t.trips,t.people,t.daysPerTrip,c.totalDays,t.startDate||'',t.endDate||'',c.perDiemTotal,c.airfareTotal,c.fuelTotal,c.vehicleTotal,c.tripTotal,t.notes||'']);});
+  // Total row
+  let trvTot=[0,0,0,0,0]; state.travel.forEach(t=>{const c=computeTravel(t);trvTot[0]+=c.perDiemTotal;trvTot[1]+=c.airfareTotal;trvTot[2]+=c.fuelTotal;trvTot[3]+=c.vehicleTotal;trvTot[4]+=c.tripTotal;});
+  trvData.push([]);
+  trvData.push(['','TOTAL','','','','','','',trvTot[0],trvTot[1],trvTot[2],trvTot[3],trvTot[4],'']);
+  addSheet('Travel', trvData, {
+    merges: [{s:{r:0,c:0},e:{r:0,c:13}}],
+    autoFilter: true, filterRow: 1,
+    numFmt: [{col:8,fmt:CF,startRow:2},{col:9,fmt:CF,startRow:2},{col:10,fmt:CF,startRow:2},{col:11,fmt:CF,startRow:2},{col:12,fmt:CF,startRow:2}]
+  });
+
+  // ── Materials sheet ──
+  const matData2=[['MATERIALS & SUPPLIES','','','','','','',''],['Item','Task','Type','Unit Cost','Start','End','Total Cost','Notes']];
+  let matTotal=0;
+  state.materials.forEach(m=>{const tk=getTask(m.taskId);
+    let total=m.cost||0;
+    if(m.costType==='ongoing'&&m.startDate&&m.endDate){const si=monthIdx(m.startDate),ei=monthIdx(m.endDate);total=(m.cost||0)*Math.max(1,ei-si+1);}
+    matTotal+=total;
+    matData2.push([m.item,tk?tk.name:'',m.costType==='ongoing'?'Ongoing ($/mo)':'One-time',m.cost||0,m.startDate||'',m.endDate||'',total,m.notes||'']);});
+  matData2.push([]);
+  matData2.push(['','TOTAL','','','','',matTotal,'']);
+  addSheet('Materials', matData2, {
+    merges: [{s:{r:0,c:0},e:{r:0,c:7}}],
+    autoFilter: true, filterRow: 1,
+    numFmt: [{col:3,fmt:CF,startRow:2},{col:6,fmt:CF,startRow:2}]
+  });
+
+  // ── Subcontracts sheet ──
+  const subData2=[['SUBCONTRACTS','','','','',''],['Vendor','Description','Cost','Start','End','Notes']];
+  let subTotal=0;
+  state.subcontracts.forEach(s=>{subTotal+=s.cost||0;subData2.push([s.vendor,s.description,s.cost||0,s.startDate||'',s.endDate||'',s.notes||'']);});
+  subData2.push([]);
+  subData2.push(['','TOTAL',subTotal,'','','']);
+  addSheet('Subcontracts', subData2, {
+    merges: [{s:{r:0,c:0},e:{r:0,c:5}}],
+    autoFilter: true, filterRow: 1,
+    numFmt: [{col:2,fmt:CF,startRow:2}]
+  });
+
+  XLSX.writeFile(wb, filePrefix()+'_budget.xlsx');
+}
+function resetAll(){if(!confirm('Clear ALL data?'))return;if(!confirm('Really?'))return;state=getDefaultState();nextId=1;save();load();recalcAll();}
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════════════ */
+load();recalcAll();
+</script>
+</body>
+</html>
