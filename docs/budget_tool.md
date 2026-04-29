@@ -1,106 +1,98 @@
 # Budget Tool — Component Reference
 
 > **Status:** Active development  
-> **Source file(s):** [`budget_planner.html`](../budget_planner.html)
-> **Last reviewed:** 2026-04-28
+> **Source file(s):** [`budget_planner.html`](../budget_planner.html)  
+> **Last reviewed:** 2026-04-29
 
 ## Purpose
 
 The budget tool is a self-contained, single-page HTML application that lets a project
-manager build a multi-category cost estimate entirely in the browser. It covers four
-budget categories — staff hours, travel, materials, and subcontracts — and applies
-configurable burden (overhead) rates to each category to produce a burdened grand total.
+manager build a multi-category cost estimate with timeline awareness entirely in the
+browser. It covers four budget categories — labor, travel, materials, and subcontracts —
+applies configurable burden (overhead) rates, distributes costs across a project
+timeline using burn rates, and visualizes spending with a monthly bar chart and a
+labor-by-category pie chart.
 
 The tool **deliberately does not**:
 
-- Connect to any server or external API.
+- Connect to any server or external API (except SheetJS CDN for Excel export).
 - Require a build step, bundler, or package manager.
-- Import or parse Excel files at runtime (the original `.xlsx` is a design reference
-  only).
+- Import or parse Excel files at runtime.
 - Handle multi-user collaboration or access control.
 
 ## Dependencies
 
 | Dependency | Why it is needed |
 |------------|-----------------|
-| None | The tool is 100 % vanilla HTML/CSS/JS with zero external dependencies. |
+| [SheetJS (xlsx)](https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js) | Excel export (`exportExcel()`). Loaded from CDN. Only needed for the "📊 Export Excel" button. |
 
-## Public Interface
-
-This is a browser application, not a library. There is no programmatic API.  
-User-facing controls are described in the [README](../README.md).
+All other functionality (data entry, calculations, chart rendering, localStorage,
+JSON save/load) works offline with zero dependencies.
 
 ## Internal Design
 
 ### State Object
 
-All application data lives in a single `state` object persisted to `localStorage`
-under the key `projectBudgetPlanner`. The shape is:
+All data lives in a single `state` object persisted to `localStorage` under key
+`projectBudgetPlanner`.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `projectName` | `string` | Free-text project name shown in header and exports |
+| `projectName` | `string` | Free-text project name |
 | `fiscalYear` | `string` | Free-text fiscal year label |
-| `burdenStaff` | `number` | Multiplier applied to total unburdened staff cost |
-| `burdenMaterials` | `number` | Multiplier applied to total unburdened materials cost |
-| `burdenTravel` | `number` | Multiplier applied to total unburdened travel cost |
-| `burdenSubcontracts` | `number` | Multiplier applied to total unburdened subcontracts cost |
-| `staff` | `Array<StaffMember>` | List of staff members (id, name, role, rate) |
-| `tasks` | `Array<Task>` | List of tasks (id, category, name, notes) |
-| `hours` | `Record<string, number>` | Sparse map keyed `"taskId-staffId"` → hours worked |
-| `travel` | `Array<TravelRow>` | Travel line items |
-| `materials` | `Array<MaterialRow>` | Material/supply line items |
-| `subcontracts` | `Array<SubcontractRow>` | Subcontract line items |
-
-A global `nextId` counter provides unique IDs via `genId()`.
-
-#### StaffMember
-
-```
-{ id: number, name: string, role: string, rate: number }
-```
-
-`role` is one of: `"Management"`, `"Lab/Field Operation"`, `"Project Support"`,
-`"Student Employee"`, `"Post Doc"`, `"Other"`.
+| `projectStart` | `string` | ISO date string (YYYY-MM-DD) for project start |
+| `projectDuration` | `number` | Project length in months |
+| `burdenStaff` | `number` | Multiplier for labor costs |
+| `burdenMaterials` | `number` | Multiplier for materials costs |
+| `burdenTravel` | `number` | Multiplier for travel costs |
+| `burdenSubcontracts` | `number` | Multiplier for subcontracts costs |
+| `taskCategories` | `Array<{id, name, sortOrder}>` | Managed list of task categories |
+| `chargeRates` | `Array<{id, category, rate}>` | Managed list of charge rate categories |
+| `locations` | `Array<Location>` | Travel locations with cost defaults |
+| `staff` | `Array<{id, name, chargeRateId}>` | Staff roster linked to charge rates |
+| `tasks` | `Array<Task>` | Task definitions with dates and burn rates |
+| `hours` | `Record<string, number>` | Sparse map `"taskId-staffId"` → hours |
+| `travel` | `Array<TravelRow>` | Travel line items with dates |
+| `materials` | `Array<MaterialRow>` | Materials with one-time or ongoing cost type |
+| `subcontracts` | `Array<SubcontractRow>` | Subcontract line items with dates |
 
 #### Task
 
 ```
-{ id: number, category: string, name: string, notes: string }
+{ id, categoryId, name, startDate, endDate, burnType, notes }
 ```
 
-`category` is a free-text grouping label (e.g. "Deployment", "Data analysis").
+`burnType` is one of: `"linear"`, `"front-heavy"`, `"back-heavy"`, `"bell-curve"`.
+
+#### Location
+
+```
+{ id, name, distance, airfare, perDiem, vehiclePerDay, fuelPerMile }
+```
+
+Note: `perDiem` is $/day/person.
 
 #### TravelRow
 
 ```
-{ id, category, destination, trips, people, daysPerTrip,
-  perDiem, airfareRate, milesPerTrip, fuelRate, vehicleRate, notes }
+{ id, locationId, taskId, trips, people, daysPerTrip, startDate, endDate,
+  perDiemOv, airfareOv, milesOv, fuelOv, vehicleOv, notes }
 ```
 
-Computed columns (not stored):
-
-| Computed | Formula |
-|----------|---------|
-| Total Days | `trips × people × daysPerTrip` |
-| Per Diem Total | `totalDays × perDiem` |
-| Airfare Total | `trips × people × airfareRate` |
-| Fuel Total | `trips × milesPerTrip × fuelRate` |
-| Vehicle Total | `trips × daysPerTrip × vehicleRate` |
-| Trip Total | sum of the four totals above |
+Override fields (`*Ov`) are null to use location defaults, or a number to override.
 
 #### MaterialRow
 
 ```
-{ id: number, item: string, task: string, cost: number, notes: string }
+{ id, item, taskId, costType, cost, startDate, endDate, notes }
 ```
 
-`task` is the name of an associated task (optional, for cross-reference).
+`costType` is `"one-time"` or `"ongoing"` (monthly recurring).
 
 #### SubcontractRow
 
 ```
-{ id: number, vendor: string, description: string, cost: number, notes: string }
+{ id, vendor, description, cost, startDate, endDate, notes }
 ```
 
 ### Key Flows
@@ -108,93 +100,95 @@ Computed columns (not stored):
 **Rendering pipeline**
 
 1. Any user input triggers `save()` (sync state → localStorage).
-2. `recalcAll()` is called, which:
-   a. Reads burden rates from DOM inputs.
-   b. Iterates each category to compute unburdened totals.
-   c. Multiplies each by its burden rate for burdened totals.
-   d. Updates the four summary cards and grand total.
-   e. Calls `renderStaffTable()`, `renderTravelTable()`, `renderMaterialsTable()`,
-      `renderSubcontractsTable()` — each rebuilds its table's innerHTML from `state`.
+2. `recalcAll()` computes totals, updates summary cards, then calls all
+   `render*()` functions which rebuild innerHTML from state.
+3. `renderChart()` draws the monthly spending stacked bar chart.
+4. `renderPieChart()` draws the labor-by-category pie chart on a canvas.
 
-**Adding a staff member or task**
+**Monthly spending distribution (`calcMonthlySpending()`)**
 
-1. User clicks "+ Add Staff" or "+ Add Task" → `openModal(type)`.
-2. Modal form is populated with fields.
-3. On submit, a new object with `genId()` is pushed to the appropriate array.
-4. `closeModal()` → `save()` → `recalcAll()`.
+- **Labor:** Each task's total cost is distributed across its start→end months
+  using the task's burn rate weights.
+- **Travel:** Single trips go to start month. Multi-trip entries distribute
+  evenly across start→end range.
+- **Materials (one-time):** Assigned to start date month.
+- **Materials (ongoing):** Monthly cost repeated for each month in start→end range.
+- **Subcontracts:** Spread evenly across start→end if both dates set.
 
-**Entering hours**
+**Burn rate weights (`burnWeights(type, n)`)**
 
-1. The staff table renders an `<input type="number">` at each task×staff intersection.
-2. `onchange` calls `setHours(taskId, staffId, value)`.
-3. If value > 0, `state.hours["taskId-staffId"]` is set; if 0, the key is deleted
-   (sparse storage).
-4. `save()` → `recalcAll()`.
+| Type | Distribution |
+|------|-------------|
+| `linear` | Even: `1/n` per month |
+| `front-heavy` | Decreasing: `n, n-1, ..., 1` (normalized) |
+| `back-heavy` | Increasing: `1, 2, ..., n` (normalized) |
+| `bell-curve` | Gaussian centered on midpoint (normalized) |
 
-**Import / Export**
+**Excel export (`exportExcel()`)**
 
-- **Save JSON:** Serialises `{ state, nextId }` as indented JSON → triggers download.
-- **Load JSON:** Reads a `.json` file, parses it, replaces `state` and `nextId`,
-  then `load()` → `recalcAll()`.
-- **Export CSV:** Builds a multi-section CSV string (summary, staff, travel, materials,
-  subcontracts) → triggers download. Values are quoted to handle commas.
+Uses SheetJS to generate a multi-sheet `.xlsx` with:
+- Summary (project info, cost breakdown, grand total)
+- Monthly Spending (month-by-month with cumulative total)
+- Labor (task × staff hours grid)
+- Staff (roster with rates)
+- Tasks (definitions with dates and burn rates)
+- Travel (trip details with cost breakdowns)
+- Materials (items with type and total cost)
+- Subcontracts
 
-### Burden Rate Logic
+Sheets have: merged title rows, auto-filter on headers, currency number formatting,
+auto-sized columns, and sheet protection (read-only).
 
-The original spreadsheet applied different overhead multipliers to different cost
-categories. The tool generalises this with four configurable burden rates displayed
-in the project info bar:
+### Tab Structure
 
-| Rate | Default | Applied to |
-|------|---------|-----------|
-| Staff | 1.0 | Sum of (hours × hourly rate) across all tasks and staff |
-| Materials | 1.3 | Sum of material line item costs |
-| Travel | 1.2 | Sum of computed trip totals |
-| Subcontracts | 1.2 | Sum of subcontract line item costs |
+| Tab | Type | Purpose |
+|-----|------|---------|
+| Labor | Cost | Staff × Task hours grid with auto-calculated costs |
+| Travel | Cost | Trip entries linked to locations and tasks |
+| Materials | Cost | One-time and ongoing material costs with dates |
+| Subcontracts | Cost | Vendor line items with dates |
+| ⚙ Tasks | Setup | Define tasks with categories, dates, burn rates |
+| ⚙ Task Categories | Setup | Managed category list (16 defaults) |
+| ⚙ Charge Rates | Setup | Managed rate list (14 defaults with actual rates) |
+| ⚙ Locations | Setup | Travel destinations with cost defaults |
 
-The summary cards show **burdened** totals. The table footers show **unburdened**
-totals. This matches common DOE/lab budgeting conventions where burden is applied at
-the category level, not per line item.
+### Default Data
 
-### FTE Calculation
+On first load, the tool seeds:
+- 16 task categories (Planning & Design through Other)
+- 14 charge rate categories (Student Intern through Specialist 5) with rates
 
-The staff table footer includes an FTE row computed as `totalHours / 1840` per staff
-member, where 1840 is the standard person-year hours (matching the original
-spreadsheet).
+### Charts
+
+- **Monthly Spending (bar chart):** CSS-based stacked bars, color-coded by category,
+  with hover tooltips. Height scales to max month.
+- **Labor by Category (pie chart):** HTML5 Canvas-based, with color legend showing
+  amounts and percentages. Groups all task costs by their category.
 
 ## Known Constraints and Gotchas
 
-- **Single-file architecture:** All HTML, CSS, and JS live in one file. This is
-  intentional for maximum portability (email, USB, SharePoint). Do not split into
-  separate files without explicit user request.
-- **localStorage only:** Data is scoped to the browser origin. Clearing browser data
-  deletes the budget. The JSON save/load feature is the portability mechanism.
-- **No undo:** There is no undo stack. The double-confirm on "Reset All" is the only
-  safety net.
-- **Inline `onclick` handlers:** Used for simplicity in a single-file app. These
-  reference `state` array indices which are rebuilt on every render, so they stay
-  correct.
-- **Hours stored as sparse map:** Keys are `"taskId-staffId"`. Deleting a staff
-  member or task also cleans up orphan keys. If IDs are ever reused (they shouldn't
-  be — `nextId` only increments), stale data could appear.
+- **SheetJS CDN dependency:** Excel export requires internet. All other features
+  work offline.
+- **localStorage only:** Data scoped to browser origin (file path). Renaming or
+  moving the file resets data. Use JSON save/load for portability.
+- **No undo:** Double-confirm on Reset All is the only safety net.
+- **Per Diem is $/day/person:** The `totalDays = trips × people × daysPerTrip`
+  already includes the people multiplier.
+- **Ongoing materials:** Total = monthly cost × number of months in range.
+  Changing project dates affects totals.
 
 ## Rejected Approaches
 
-- **Multi-file SPA (HTML + JS + CSS separate files):** Rejected because the primary
-  distribution method is sending a single file via email or SharePoint. A multi-file
-  approach would require zipping or a web server.
-- **React / Vue / framework-based:** Rejected for the same portability reason and
-  because it would require a build step.
-- **Excel parsing at runtime (SheetJS):** Considered for importing the original `.xlsx`
-  directly. Rejected because it adds a 500 KB+ dependency and the spreadsheet
-  structure is too messy/specific to parse generically. Better to start fresh with
-  clean data entry.
-- **IndexedDB storage:** Rejected as overkill for the data volume. localStorage is
-  sufficient and simpler to debug.
+- **Multi-file SPA:** Rejected for portability (single file distribution).
+- **React/Vue/framework:** Rejected — requires build step.
+- **Excel parsing at runtime (SheetJS import):** Original spreadsheet too messy.
+- **IndexedDB:** Overkill for data volume.
+- **Embedding SheetJS inline:** Would add ~500KB to file size. CDN approach chosen.
+- **`flat` burn type:** Removed — identical to `linear`, caused confusion.
 
 ## Open Issues / To-Do
 
-- Print-friendly CSS for generating PDF reports.
-- Optional per-task subtotals in the summary cards.
-- Drag-and-drop row reordering for tasks and travel.
-- Data validation warnings (e.g., hours exceeding FTE limits).
+- Print-friendly CSS for PDF reports.
+- Drag-and-drop row reordering.
+- Data validation warnings (hours exceeding FTE limits, dates outside project range).
+- Cumulative spending line overlay on bar chart.
