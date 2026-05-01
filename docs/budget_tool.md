@@ -1,8 +1,8 @@
 # Budget Tool — Component Reference
 
-> **Status:** Active development  
-> **Source file(s):** [`budget_planner.html`](../budget_planner.html)  
-> **Last reviewed:** 2026-04-29
+> **Status:** Active development
+> **Source file(s):** [`budget_planner.html`](../budget_planner.html)
+> **Last reviewed:** 2026-05-01
 
 ## Purpose
 
@@ -59,10 +59,14 @@ All data lives in a single `state` object persisted to `localStorage` under key
 #### Task
 
 ```
-{ id, categoryId, name, startDate, endDate, burnType, notes }
+{ id, categoryId, name, startDate, endDate, burnType, notes, sortOrder }
 ```
 
 `burnType` is one of: `"linear"`, `"front-heavy"`, `"back-heavy"`, `"bell-curve"`.
+
+`sortOrder` is a non-negative integer controlling display order within a category.
+Up/down buttons in the ⚙ Tasks tab reorder tasks; `sortOrder` values are normalized
+to `0, 1, 2, …` after each swap.
 
 #### Location
 
@@ -70,7 +74,8 @@ All data lives in a single `state` object persisted to `localStorage` under key
 { id, name, distance, airfare, perDiem, vehiclePerDay, fuelPerMile }
 ```
 
-Note: `perDiem` is $/day/person.
+Note: `perDiem` is $/day/person. Default values when a new location is added:
+`perDiem: 200`, `vehiclePerDay: 75`, `fuelPerMile: 0.40`, all others `0`.
 
 #### TravelRow
 
@@ -104,6 +109,7 @@ Override fields (`*Ov`) are null to use location defaults, or a number to overri
    `render*()` functions which rebuild innerHTML from state.
 3. `renderChart()` draws the monthly spending stacked bar chart.
 4. `renderPieChart()` draws the labor-by-category pie chart on a canvas.
+5. `renderGantt()` builds the Gantt table with Federal fiscal-quarter boundary lines.
 
 **Monthly spending distribution (`calcMonthlySpending()`)**
 
@@ -147,7 +153,8 @@ auto-sized columns, and sheet protection (read-only).
 | Travel | Cost | Trip entries linked to locations and tasks |
 | Materials | Cost | One-time and ongoing material costs with dates |
 | Subcontracts | Cost | Vendor line items with dates |
-| ⚙ Tasks | Setup | Define tasks with categories, dates, burn rates |
+| 📅 Gantt | View | Timeline bar chart of tasks with Federal fiscal-quarter boundary lines |
+| ⚙ Tasks | Setup | Define tasks with categories, dates, burn rates, and sort order |
 | ⚙ Task Categories | Setup | Managed category list (16 defaults) |
 | ⚙ Charge Rates | Setup | Managed rate list (14 defaults with actual rates) |
 | ⚙ Locations | Setup | Travel destinations with cost defaults |

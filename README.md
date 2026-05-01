@@ -130,7 +130,9 @@ Enter vendor, description, cost, and optional start/end dates.
 | Monthly Spending chart | Below cards | Stacked bars showing monthly burdened costs |
 | Labor by Category pie | Next to bar chart | Pie chart of labor costs by task category |
 | Cost tabs | Labor, Travel, Materials, Subcontracts | Enter cost data |
+| 📅 Gantt tab | Between cost and setup tabs | Task timeline with Federal fiscal-quarter markers |
 | Setup tabs (⚙) | Tasks, Categories, Rates, Locations | Configure reference data |
+| ▲/▼ buttons | ⚙ Tasks tab rows | Reorder tasks within a category |
 | + Add buttons | Tab headers | Add new items |
 | ✎ / ✕ buttons | Table rows | Edit or remove items |
 | Override button | Travel detail rows | Override location defaults per trip |
@@ -167,7 +169,7 @@ project-budget-planner/
 ├── docs/
 │   ├── budget_tool.md                    ← Component reference for budget_planner.html
 │   └── CHANGELOG_budget_planner_html.md  ← Change history for budget_planner.html
-├── budget_planner.html                   ← The application (open in browser)
+├── budget_planner.html                   ← The application (open in browser; renamed from index.html)
 ├── charge_rates_template.csv             ← Importable charge rates template
 ├── README.md                             ← This file
 └── Github_Copilot_Project_Documentation_Guide.md  ← Documentation strategy guide

@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-05-01 — Gantt chart tab, task sort order
+
+**What changed:**
+Added a `📅 Gantt` tab with an HTML-table-based Gantt chart. Each task renders as a
+color-coded bar spanning its start→end months. Two header rows show Federal fiscal
+year groups and month labels. Red vertical lines mark Federal fiscal quarter
+boundaries (Q1 Oct, Q2 Jan, Q3 Apr, Q4 Jul) with `FYxx Qn` labels. Tasks group
+into category section rows matching the Tasks and Labor tab order.
+
+Added `sortOrder` field to tasks with ▲/▼ reorder buttons in the ⚙ Tasks tab.
+Sort order is scoped per category and normalized after each swap. All tabs
+(Tasks, Labor, Gantt) render tasks in the same category → sortOrder sequence.
+
+**Why:**
+Project stakeholders need a visual timeline to confirm task scheduling and fiscal
+quarter alignment before submitting a budget. Sort order allows custom sequencing
+within categories without renaming.
+
+**Side effects:**
+`recalcAll()` now calls `renderGantt()`. New location rows default to
+`perDiem: $200/day/person`, `vehicle: $75/day`, `fuel: $0.40/mile`.
+
+---
+
 ## 2026-04-29 — Labor by category pie chart
 
 **What changed:**  
